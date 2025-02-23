@@ -2,7 +2,7 @@ import os
 import discord
 from welcome import send_welcome_message
 
-
+const keep_alive = require(`./keep_alive.js`);
 # Obtener el token desde las variables de entorno
 my_secret = os.environ['TOKEN']
 
