@@ -1,7 +1,5 @@
 import os
 import discord
-from yt_dlp.utils import DownloadError
-import yt_dlp as youtube_dl
 from discord.ext import commands
 
 # Obtener el token desde las variables de entorno
