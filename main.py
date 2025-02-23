@@ -1,8 +1,8 @@
 import os
 import discord
 from welcome import send_welcome_message
+from webserver import keep_alive  # Importa el servidor Flask
 
-const keep_alive = require(`./keep_alive.js`);
 # Obtener el token desde las variables de entorno
 my_secret = os.environ['TOKEN']
 
@@ -40,9 +40,6 @@ async def on_message(message):
         fake_member = message.author  # Usa al que ejecuta el comando como miembro ficticio
         await send_welcome_message(fake_member)
         await message.channel.send(f"✅ Se ha enviado un mensaje de bienvenida para {fake_member.mention}.")
-
-
-
 
 # Nombre del rol que activará el prefijo
 ROL_OBJETIVO = "𝒁┊Member"
@@ -82,4 +79,6 @@ async def on_member_update(before: discord.Member, after: discord.Member):
         except discord.HTTPException as e:
             print(f'⚠️ Error al cambiar el apodo: {e}')
 
+# Mantener activo el bot
+keep_alive()
 client.run(my_secret)
