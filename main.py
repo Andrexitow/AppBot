@@ -76,6 +76,8 @@ async def info(ctx, member: discord.Member = None):
     if member is None:
         member = ctx.author  # Si no mencionan a nadie, usa al autor del mensaje
 
+    print(f"Comando #info ejecutado por {ctx.author} - Miembro seleccionado: {member}")
+
     embed = discord.Embed(title=f'Información de {member.name}', color=discord.Color.blue())
     embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
     embed.add_field(name='🔹 ID', value=member.id, inline=False)
