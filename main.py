@@ -3,7 +3,12 @@ import discord
 from discord.ext import commands
 
 # Obtener el token desde las variables de entorno
-my_secret = os.environ['TOKEN']
+#my_secret = os.environ['TOKEN']
+my_secret = os.getenv('TOKEN')
+
+if not my_secret:
+    raise ValueError("TOKEN no está definido en las variables de entorno")
+
 
 # Habilitar intents avanzados
 intents = discord.Intents.default()
