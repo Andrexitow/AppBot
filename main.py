@@ -33,7 +33,7 @@ async def on_message(message):
         return
 
     if message.content.startswith('!hello'):
-        await message.channel.send('👋 ¡Hola!')
+        await message.channel.send('👋 ¡Holaaa!')
 
     if message.content.startswith('!testwelcome'):
         """Comando para probar el mensaje de bienvenida manualmente"""
