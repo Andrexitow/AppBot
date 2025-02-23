@@ -71,8 +71,11 @@ async def clear(ctx, amount: int):
 
 
 @bot.command()
-async def info(ctx, member: discord.Member):
+async def info(ctx, member: discord.Member = None):
     """Muestra información sobre un usuario"""
+    if member is None:
+        member = ctx.author  # Si no mencionan a nadie, usa al autor del mensaje
+
     embed = discord.Embed(title=f'Información de {member.name}', color=discord.Color.blue())
     embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
     embed.add_field(name='🔹 ID', value=member.id, inline=False)
@@ -81,7 +84,9 @@ async def info(ctx, member: discord.Member):
     embed.add_field(name='🔹 Cuenta creada', value=member.created_at.strftime("%d/%m/%Y"), inline=False)
     embed.add_field(name='🔹 Se unió el', value=member.joined_at.strftime("%d/%m/%Y"), inline=False)
     embed.add_field(name='🔹 Roles', value=', '.join([role.name for role in member.roles if role.name != "@everyone"]) or 'Sin roles', inline=False)
+    
     await ctx.send(embed=embed)
+
 
 
 @bot.command()
