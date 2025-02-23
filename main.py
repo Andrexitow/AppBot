@@ -1,84 +1,118 @@
 import os
 import discord
-from welcome import send_welcome_message
-from webserver import keep_alive  # Importa el servidor Flask
+from yt_dlp.utils import DownloadError
+import yt_dlp as youtube_dl
+from discord.ext import commands
 
 # Obtener el token desde las variables de entorno
 my_secret = os.environ['TOKEN']
 
-# Habilitar intents avanzados para manejar miembros y roles
+# Habilitar intents avanzados
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Necesario para detectar cambios en los roles
+intents.members = True
 
-client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix="#", intents=intents)
 
-@client.event
+# Configuración de yt-dlp para descargar audio
+YDL_OPTIONS = {
+    'format': 'bestaudio/best',  # Fuerza la mejor calidad de audio disponible
+    'noplaylist': 'True',
+    'quiet': True,  # Oculta logs innecesarios
+    'extractaudio': True,
+    'audioformat': 'mp3',
+    'outtmpl': 'downloads/%(title)s.%(ext)s',  # Guarda el archivo en la carpeta "downloads"
+    'postprocessors': [{  # Añade un postprocesador para asegurar que el audio sea compatible
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }]
+}
+
+FFMPEG_OPTIONS = {
+    'before_options': '-nostdin',
+    'options': '-vn'
+}
+
+
+@bot.event
 async def on_ready():
-    print(f'✅ Bot iniciado como {client.user}')
-    for guild in client.guilds:
-        bot_member = guild.me
-        if bot_member.guild_permissions.manage_nicknames:
-            print(f'✅ Puedo cambiar apodos en {guild.name}')
-        else:
-            print(f'❌ No tengo permisos para cambiar apodos en {guild.name}')
+    print(f'✅ Bot iniciado como {bot.user}')
+    print(f'Comandos registrados: {[command.name for command in bot.commands]}')
 
-@client.event
-async def on_member_join(member):
-    await send_welcome_message(member)  # ✅ Llama a la función de bienvenida desde welcome.py
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
+@bot.command()
+async def join(ctx):
+    """El bot se une al canal de voz"""
+    if ctx.author.voice:
+        await ctx.author.voice.channel.connect()
+        await ctx.send(f"🔊 Conectado a **{ctx.author.voice.channel}**")
+    else:
+        await ctx.send("❌ Debes estar en un canal de voz.")
+
+
+@bot.command()
+async def leave(ctx):
+    """El bot sale del canal de voz"""
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("🔇 Desconectado.")
+
+
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def clear(ctx, amount: int):
+    """Elimina mensajes anteriores"""
+    await ctx.channel.purge(limit=amount + 1)
+    await ctx.send(f'🗑️ Se eliminaron {amount} mensajes.', delete_after=3)
+
+
+@bot.command()
+async def info(ctx, member: discord.Member):
+    """Muestra información sobre un usuario"""
+    embed = discord.Embed(title=f'Información de {member.name}', color=discord.Color.blue())
+    embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+    embed.add_field(name='🔹 ID', value=member.id, inline=False)
+    embed.add_field(name='🔹 Nombre', value=member.name, inline=False)
+    embed.add_field(name='🔹 Apodo', value=member.nick if member.nick else 'Ninguno', inline=False)
+    embed.add_field(name='🔹 Cuenta creada', value=member.created_at.strftime("%d/%m/%Y"), inline=False)
+    embed.add_field(name='🔹 Se unió el', value=member.joined_at.strftime("%d/%m/%Y"), inline=False)
+    embed.add_field(name='🔹 Roles', value=', '.join([role.name for role in member.roles if role.name != "@everyone"]) or 'Sin roles', inline=False)
+    await ctx.send(embed=embed)
+
+
+@bot.command()
+@commands.has_permissions(ban_members=True)
+async def ban(ctx, member: discord.Member = None, *, reason="No especificada"):
+    if member is None:
+        await ctx.send("❌ Debes mencionar a un usuario para banear.")
         return
 
-    if message.content.startswith('!hello'):
-        await message.channel.send('👋 ¡Holaaa!')
+    try:
+        await member.ban(reason=reason)
+        await ctx.send(f"✅ {member.mention} ha sido baneado. Razón: {reason}")
+    except discord.Forbidden:
+        await ctx.send("❌ No tengo permisos para banear a este usuario.")
+    except Exception as e:
+        await ctx.send(f"❌ Error al banear: {e}")
 
-    if message.content.startswith('!testwelcome'):
-        """Comando para probar el mensaje de bienvenida manualmente"""
-        fake_member = message.author  # Usa al que ejecuta el comando como miembro ficticio
-        await send_welcome_message(fake_member)
-        await message.channel.send(f"✅ Se ha enviado un mensaje de bienvenida para {fake_member.mention}.")
 
-# Nombre del rol que activará el prefijo
-ROL_OBJETIVO = "𝒁┊Member"
-PREFIJO = "𝒁┊ "
-
-@client.event
-async def on_member_update(before: discord.Member, after: discord.Member):
-    """Se ejecuta cuando un usuario gana o pierde un rol."""
-    guild = after.guild
-    role = discord.utils.get(guild.roles, name=ROL_OBJETIVO)  # Busca el rol por nombre
-
-    if not role:
-        print(f'⚠️ El rol "{ROL_OBJETIVO}" no existe en el servidor {guild.name}')
+@bot.command()
+@commands.has_permissions(manage_messages=True)
+async def announce(ctx, channel: discord.TextChannel = None, *, message=None):
+    if channel is None or message is None:
+        await ctx.send("❌ Uso correcto: `#announce #canal Mensaje del anuncio`")
         return
 
-    # ✅ Si el usuario GANA el rol, añade el prefijo
-    if role not in before.roles and role in after.roles:
-        try:
-            if not after.nick or not after.nick.startswith(PREFIJO):  # Evita duplicar el prefijo
-                nuevo_nombre = f"{PREFIJO}{after.nick or after.name}"
-                await after.edit(nick=nuevo_nombre[:32])  # Límite de Discord: 32 caracteres
-                print(f'✅ Prefijo añadido a {after.name}')
-        except discord.Forbidden:
-            print(f'❌ No tengo permisos para cambiar el apodo de {after.name}')
-        except discord.HTTPException as e:
-            print(f'⚠️ Error al cambiar el apodo: {e}')
+    embed = discord.Embed(title="📢 Anuncio Importante", description=message, color=discord.Color.blue())
+    embed.set_footer(text=f"Anuncio realizado por {ctx.author.name}", icon_url=ctx.author.avatar.url)
 
-    # ✅ Si el usuario PIERDE el rol, elimina el prefijo
-    if role in before.roles and role not in after.roles:
-        try:
-            if after.nick and after.nick.startswith(PREFIJO):  # Evita errores
-                nuevo_nombre = after.nick.replace(PREFIJO, "").strip() or None
-                await after.edit(nick=nuevo_nombre)
-                print(f'🔄 Se quitó el prefijo de {after.name}')
-        except discord.Forbidden:
-            print(f'❌ No tengo permisos para cambiar el apodo de {after.name}')
-        except discord.HTTPException as e:
-            print(f'⚠️ Error al cambiar el apodo: {e}')
+    await channel.send(embed=embed)
+    await ctx.send(f"✅ Anuncio enviado en {channel.mention}")
 
-# Mantener activo el bot
-keep_alive()
-client.run(my_secret)
+
+# Crear la carpeta "downloads" si no existe
+if not os.path.exists("downloads"):
+    os.makedirs("downloads")
+
+bot.run(my_secret)
