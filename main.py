@@ -165,4 +165,98 @@ async def anuncio(ctx, channel: discord.TextChannel = None, *, message=None):
     except Exception as e:
         await ctx.send(embed=discord.Embed(title="❌ Error", description=f"Ocurrió un error al enviar el anuncio: {e}", color=discord.Color.red()), delete_after=10)
 
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def mute(ctx, member: discord.Member = None, *, reason="No especificada"):
+    """Mutea a un usuario en el servidor."""
+    if member is None:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="Debes mencionar a un usuario para mutear.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    # Verificar si el bot tiene permisos para gestionar roles
+    if not ctx.guild.me.guild_permissions.manage_roles:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="No tengo permisos para gestionar roles.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    # Verificar si el usuario a mutear tiene un rol más alto que el bot
+    if ctx.guild.me.top_role <= member.top_role:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="No puedo mutear a este usuario porque tiene un rol igual o superior al mío.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    # Verificar si el usuario que ejecuta el comando tiene un rol más alto que el usuario a mutear
+    if ctx.author.top_role <= member.top_role:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="No puedes mutear a este usuario porque tiene un rol igual o superior al tuyo.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    # Buscar el rol de mute en el servidor
+    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
+    if mute_role is None:
+        # Si no existe el rol de mute, crearlo
+        try:
+            mute_role = await ctx.guild.create_role(name="Muted", reason="Crear rol de mute para el comando de muteo.")
+            # Deshabilitar permisos de enviar mensajes y hablar en todos los canales
+            for channel in ctx.guild.channels:
+                await channel.set_permissions(mute_role, send_messages=False, speak=False)
+        except discord.Forbidden:
+            embed = discord.Embed(
+                title="❌ Error",
+                description="No tengo permisos para crear el rol de mute.",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, delete_after=10)
+            return
+        except Exception as e:
+            embed = discord.Embed(
+                title="❌ Error",
+                description=f"Ocurrió un error al crear el rol de mute: {e}",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, delete_after=10)
+            return
+
+    try:
+        # Añadir el rol de mute al usuario
+        await member.add_roles(mute_role, reason=reason)
+        embed = discord.Embed(
+            title="✅ Usuario muteado",
+            description=f"{member.mention} ha sido muteado.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Razón", value=reason, inline=False)
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="No tengo permisos para añadir roles a este usuario.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Ocurrió un error al mutear: {e}",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+
 bot.run(my_secret)
