@@ -1,5 +1,6 @@
 import os
 import discord
+import asyncio
 from discord.ext import commands
 from updaterol import handle_member_update, handle_member_join  # Importar funciones actualizadas
 
@@ -167,8 +168,66 @@ async def anuncio(ctx, channel: discord.TextChannel = None, *, message=None):
 
 @bot.command()
 @commands.has_permissions(manage_roles=True)
-async def mute(ctx, member: discord.Member = None, *, reason="No especificada"):
-    """Mutea a un usuario en el servidor."""
+async def unmute(ctx, member: discord.Member = None):
+    """Desmutea a un usuario en el servidor."""
+    if member is None:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="Debes mencionar a un usuario para desmutear.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    # Buscar el rol de mute en el servidor
+    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
+    if mute_role is None:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="No existe un rol de mute en este servidor.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    # Verificar si el usuario tiene el rol de mute
+    if mute_role not in member.roles:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"{member.mention} no está muteado.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+        return
+
+    try:
+        # Quitar el rol de mute al usuario
+        await member.remove_roles(mute_role, reason="Desmuteo manual.")
+        embed = discord.Embed(
+            title="✅ Usuario desmuteado",
+            description=f"{member.mention} ha sido desmuteado.",
+            color=discord.Color.green()
+        )
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        embed = discord.Embed(
+            title="❌ Error",
+            description="No tengo permisos para quitar roles a este usuario.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+    except Exception as e:
+        embed = discord.Embed(
+            title="❌ Error",
+            description=f"Ocurrió un error al desmutear: {e}",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, delete_after=10)
+
+@bot.command()
+@commands.has_permissions(manage_roles=True)
+async def mute(ctx, member: discord.Member = None, tiempo: str = None, *, reason="No especificada"):
+    """Mutea a un usuario en el servidor por un tiempo específico."""
     if member is None:
         embed = discord.Embed(
             title="❌ Error",
@@ -237,12 +296,40 @@ async def mute(ctx, member: discord.Member = None, *, reason="No especificada"):
     try:
         # Añadir el rol de mute al usuario
         await member.add_roles(mute_role, reason=reason)
+
+        # Si se especificó un tiempo, calcular la duración del mute
+        if tiempo:
+            try:
+                # Convertir el tiempo a segundos
+                tiempo_segundos = 0
+                if "d" in tiempo:
+                    tiempo_segundos += int(tiempo.split("d")[0]) * 86400
+                    tiempo = tiempo.split("d")[1]
+                if "h" in tiempo:
+                    tiempo_segundos += int(tiempo.split("h")[0]) * 3600
+                    tiempo = tiempo.split("h")[1]
+                if "m" in tiempo:
+                    tiempo_segundos += int(tiempo.split("m")[0]) * 60
+                    tiempo = tiempo.split("m")[1]
+                if "s" in tiempo:
+                    tiempo_segundos += int(tiempo.split("s")[0])
+
+                # Programar el desmuteo después del tiempo especificado
+                await asyncio.sleep(tiempo_segundos)
+                await member.remove_roles(mute_role, reason="Tiempo de muteo terminado.")
+                await ctx.send(f"✅ {member.mention} ha sido desmuteado automáticamente.", delete_after=10)
+            except ValueError:
+                await ctx.send("❌ Formato de tiempo inválido. Usa `1d2h3m4s` como ejemplo.", delete_after=10)
+                return
+
         embed = discord.Embed(
             title="✅ Usuario muteado",
             description=f"{member.mention} ha sido muteado.",
             color=discord.Color.green()
         )
         embed.add_field(name="Razón", value=reason, inline=False)
+        if tiempo:
+            embed.add_field(name="Duración", value=tiempo, inline=False)
         await ctx.send(embed=embed)
     except discord.Forbidden:
         embed = discord.Embed(
