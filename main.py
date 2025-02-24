@@ -297,6 +297,14 @@ async def mute(ctx, member: discord.Member = None, tiempo: str = None, *, reason
         # Añadir el rol de mute al usuario
         await member.add_roles(mute_role, reason=reason)
 
+        # Crear el mensaje de confirmación
+        embed = discord.Embed(
+            title="✅ Usuario muteado",
+            description=f"{member.mention} ha sido muteado.",
+            color=discord.Color.green()
+        )
+        embed.add_field(name="Razón", value=reason, inline=False)
+
         # Si se especificó un tiempo, calcular la duración del mute
         if tiempo:
             try:
@@ -314,6 +322,9 @@ async def mute(ctx, member: discord.Member = None, tiempo: str = None, *, reason
                 if "s" in tiempo:
                     tiempo_segundos += int(tiempo.split("s")[0])
 
+                # Mostrar el tiempo en el mensaje
+                embed.add_field(name="Duración", value=tiempo, inline=False)
+
                 # Programar el desmuteo después del tiempo especificado
                 await asyncio.sleep(tiempo_segundos)
                 await member.remove_roles(mute_role, reason="Tiempo de muteo terminado.")
@@ -322,14 +333,7 @@ async def mute(ctx, member: discord.Member = None, tiempo: str = None, *, reason
                 await ctx.send("❌ Formato de tiempo inválido. Usa `1d2h3m4s` como ejemplo.", delete_after=10)
                 return
 
-        embed = discord.Embed(
-            title="✅ Usuario muteado",
-            description=f"{member.mention} ha sido muteado.",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Razón", value=reason, inline=False)
-        if tiempo:
-            embed.add_field(name="Duración", value=tiempo, inline=False)
+        # Enviar el mensaje de confirmación
         await ctx.send(embed=embed)
     except discord.Forbidden:
         embed = discord.Embed(
