@@ -1,7 +1,7 @@
 import discord
 
 # Configuración del rol y prefijo
-ROL_OBJETIVO = "𝒁┊Member"  # Rol que activa el prefijo en el apodo
+ROL_OBJETIVO = "𝒁┊Member"  # Rol que activa el prefijo en el apodoO
 ROL_USUARIO = "User"  # Rol que se asigna automáticamente a los nuevos miembros
 PREFIJO = "𝒁┊ "
 
