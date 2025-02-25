@@ -1,14 +1,27 @@
 import discord
 from discord.ext import commands
 import re
-
+import json
+import os
 
 class AutoRolesURL(commands.Cog):
 
     def __init__(self, bot):
         self.bot = bot
-        # Guardamos el mensaje de autoroles para gestionar las reacciones
-        self.role_messages = {}
+        # Cargamos los mensajes de autoroles desde un archivo JSON
+        self.role_messages = self.load_role_messages()
+
+    def load_role_messages(self):
+        """Carga los mensajes de autoroles desde un archivo JSON."""
+        if os.path.exists("role_messages.json"):
+            with open("role_messages.json", "r") as f:
+                return json.load(f)
+        return {}
+
+    def save_role_messages(self):
+        """Guarda los mensajes de autoroles en un archivo JSON."""
+        with open("role_messages.json", "w") as f:
+            json.dump(self.role_messages, f)
 
     @commands.command()
     @commands.has_permissions(manage_roles=True)
@@ -27,8 +40,7 @@ class AutoRolesURL(commands.Cog):
             final_thumbnail_url = thumbnail_url  # Se asume que es una URL válida
 
         # Procesamos la lista de pares "emoji = rol"
-        roles_dict = {}  # Estructura: {emoji_obj: role}
-        # Este patrón detecta IDs de emojis o emojis estándar
+        roles_dict = {}  # Estructura: {str(emoji): role_id}
         emoji_pattern = re.compile(r"(\d+|[^|= ]+)")
         pairs = roles_text.split("|")
         for pair in pairs:
@@ -68,7 +80,8 @@ class AutoRolesURL(commands.Cog):
                     # Se asume que es un emoji estándar
                     emoji_obj = emoji_input
 
-                roles_dict[emoji_obj] = role
+                # Guardamos la clave del emoji (usaremos su representación en cadena)
+                roles_dict[str(emoji_obj)] = role.id
 
             except Exception as e:
                 await ctx.send(
@@ -78,8 +91,7 @@ class AutoRolesURL(commands.Cog):
 
         # Crear el embed
         embed = discord.Embed(
-            title=
-            "<a:aCORONA_:882352292140036097> 𝐀𝐮𝐭𝐨𝐫𝐨𝐥𝐞𝐬 <a:aCORONA_:882352292140036097>",
+            title="<a:aCORONA_:882352292140036097> 𝐀𝐮𝐭𝐨𝐫𝐨𝐥𝐞𝐬 <a:aCORONA_:882352292140036097>",
             description="<a:cruz:882351660339437579> " + description,
             color=discord.Color.blue())
 
@@ -88,7 +100,8 @@ class AutoRolesURL(commands.Cog):
 
         # Agregar la lista de roles a la descripción
         role_lines = []
-        for emoji, role in roles_dict.items():
+        for emoji, role_id in roles_dict.items():
+            role = ctx.guild.get_role(role_id)
             role_lines.append(f"{emoji} | {role.mention}")
         embed.description += "\n\n" + "\n".join(role_lines)
 
@@ -109,12 +122,13 @@ class AutoRolesURL(commands.Cog):
                 await ctx.send(f"❌ No pude agregar la reacción {emoji}: {e}")
 
         # Guardamos el mensaje para gestionar las reacciones posteriormente
-        self.role_messages[autorole_message.id] = roles_dict
+        self.role_messages[str(autorole_message.id)] = roles_dict
+        self.save_role_messages()
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        """Asigna el rol correspondiente al reaccionar y remueve otros para que solo tenga uno."""
-        if payload.message_id not in self.role_messages:
+        """Asigna el rol correspondiente al reaccionar y remueve otras reacciones/roles para que el usuario solo tenga uno."""
+        if str(payload.message_id) not in self.role_messages:
             return
 
         guild = self.bot.get_guild(payload.guild_id)
@@ -125,9 +139,9 @@ class AutoRolesURL(commands.Cog):
         if member is None or member.bot:
             return
 
-        roles_dict = self.role_messages[payload.message_id]
+        roles_dict = self.role_messages[str(payload.message_id)]
         channel = guild.get_channel(payload.channel_id)
-        if not channel:
+        if channel is None:
             return
 
         try:
@@ -136,53 +150,36 @@ class AutoRolesURL(commands.Cog):
             print(f"Error al obtener el mensaje: {e}")
             return
 
-        new_role = None
-        for key, role in roles_dict.items():
-            # Compara para emojis personalizados y estándar
-            if isinstance(key, discord.Emoji):
-                if payload.emoji.id == key.id:
-                    new_role = role
-                    break
-            else:
-                if str(payload.emoji) == key:
-                    new_role = role
-                    break
+        # La clave se determina según la representación en cadena del emoji
+        new_key = str(payload.emoji)
+        if new_key not in roles_dict:
+            return
 
+        new_role = guild.get_role(roles_dict[new_key])
         if new_role is None:
             return
 
-        # Remover otros roles de la lista para que el usuario solo tenga uno
-        for key, role in roles_dict.items():
-            if role in member.roles and role != new_role:
-                try:
-                    await member.remove_roles(role)
-                except Exception as e:
-                    print(f"Error removiendo rol: {e}")
+        # Validación: El usuario solo puede tener una reacción de este mensaje.
+        # Se recorren todas las reacciones autorizadas en el mensaje y se eliminan las que no sean la actual.
+        for reaction in message.reactions:
+            reaction_key = str(reaction.emoji)
+            if reaction_key in roles_dict and reaction_key != new_key:
+                async for user in reaction.users():
+                    if user.id == member.id:
+                        try:
+                            await message.remove_reaction(reaction.emoji, member)
+                        except Exception as e:
+                            print(f"Error removiendo reacción: {e}")
 
-                # Remover la reacción previa del usuario
-                for reaction in message.reactions:
-                    if isinstance(key, discord.Emoji):
-                        if isinstance(
-                                reaction.emoji,
-                                discord.Emoji) and reaction.emoji.id == key.id:
-                            async for user in reaction.users():
-                                if user.id == member.id:
-                                    try:
-                                        await message.remove_reaction(
-                                            reaction.emoji, member)
-                                    except Exception as e:
-                                        print(
-                                            f"Error removiendo reacción: {e}")
-                    else:
-                        if str(reaction.emoji) == key:
-                            async for user in reaction.users():
-                                if user.id == member.id:
-                                    try:
-                                        await message.remove_reaction(
-                                            reaction.emoji, member)
-                                    except Exception as e:
-                                        print(
-                                            f"Error removiendo reacción: {e}")
+        # También, si el usuario tenía asignado otro rol de este mensaje, lo removemos
+        for key, role_id in roles_dict.items():
+            if key != new_key:
+                role = guild.get_role(role_id)
+                if role in member.roles:
+                    try:
+                        await member.remove_roles(role)
+                    except Exception as e:
+                        print(f"Error removiendo rol: {e}")
 
         try:
             await member.add_roles(new_role)
@@ -192,7 +189,7 @@ class AutoRolesURL(commands.Cog):
     @commands.Cog.listener()
     async def on_raw_reaction_remove(self, payload):
         """Quita el rol si se elimina la reacción."""
-        if payload.message_id not in self.role_messages:
+        if str(payload.message_id) not in self.role_messages:
             return
 
         guild = self.bot.get_guild(payload.guild_id)
@@ -203,25 +200,16 @@ class AutoRolesURL(commands.Cog):
         if member is None or member.bot:
             return
 
-        roles_dict = self.role_messages[payload.message_id]
-        for key, role in roles_dict.items():
-            if isinstance(key, discord.Emoji):
-                if payload.emoji.id == key.id:
-                    try:
-                        await member.remove_roles(role)
-                    except Exception as e:
-                        print(
-                            f"Error removiendo rol al quitar la reacción: {e}")
-                    break
-            else:
-                if str(payload.emoji) == key:
-                    try:
-                        await member.remove_roles(role)
-                    except Exception as e:
-                        print(
-                            f"Error removiendo rol al quitar la reacción: {e}")
-                    break
-
+        roles_dict = self.role_messages[str(payload.message_id)]
+        removed_key = str(payload.emoji)
+        for key, role_id in roles_dict.items():
+            if removed_key == key:
+                role = guild.get_role(role_id)
+                try:
+                    await member.remove_roles(role)
+                except Exception as e:
+                    print(f"Error removiendo rol al quitar la reacción: {e}")
+                break
 
 async def setup(bot):
     await bot.add_cog(AutoRolesURL(bot))
