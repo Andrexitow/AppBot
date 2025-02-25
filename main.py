@@ -3,6 +3,7 @@ import discord
 import asyncio
 from discord.ext import commands
 from welcome import send_welcome_message  # Importar la función de welcome.py
+from back import send_farewell_message  # Función de despedida
 from updaterol import handle_member_update, handle_member_join  # Importar funciones
 
 # Obtener el token desde las variables de entorno
@@ -81,6 +82,11 @@ async def on_ready():
 async def on_member_join(member: discord.Member):
     await send_welcome_message(member)
     await handle_member_join(member)
+
+@bot.event
+async def on_member_remove(member: discord.Member):
+    # Llama a la función para enviar el mensaje de despedida
+    await send_farewell_message(member)
 
 @bot.event
 async def on_member_update(before: discord.Member, after: discord.Member):
