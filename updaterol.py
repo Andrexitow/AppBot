@@ -31,7 +31,7 @@ async def handle_member_update(before: discord.Member, after: discord.Member):
     role = discord.utils.get(guild.roles, name=ROL_OBJETIVO)
 
     if not role:
-        print(f'⚠️ El rol "{ROL_OBJETIVO}" no existe en el servidor {guild.name}')
+        #print(f'⚠️ El rol "{ROL_OBJETIVO}" no existe en el servidor {guild.name}')
         return
 
     # ✅ Si el usuario GANA el rol, añade el prefijo
