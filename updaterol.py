@@ -14,7 +14,7 @@ async def handle_member_join(member: discord.Member):
     rol_user = discord.utils.get(guild.roles, name=ROL_USUARIO)
 
     if not rol_user:
-        print(f'⚠️ El rol "{ROL_USUARIO}" no existe en el servidor {guild.name}')
+        #print(f'⚠️ El rol "{ROL_USUARIO}" no existe en el servidor {guild.name}')
         return
 
     try:
