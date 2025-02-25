@@ -2,352 +2,95 @@ import os
 import discord
 import asyncio
 from discord.ext import commands
-from updaterol import handle_member_update, handle_member_join  # Importar funciones actualizadas
+from updaterol import handle_member_update, handle_member_join  # Importar funciones
 
 # Obtener el token desde las variables de entorno
-my_secret = os.environ['TOKEN']
+TOKEN = os.environ['TOKEN']
 
-# Habilitar intents avanzados
+# Configurar intents
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # Necesario para detectar cambios en los miembros
+intents.members = True
+intents.reactions = True  # Agregamos este intent para las reacciones
 
-bot = commands.Bot(command_prefix="z.", intents=intents)
+# Inicializar el bot
+bot = commands.Bot(command_prefix="..", intents=intents)
+
 
 @bot.event
 async def on_ready():
     print(f'✅ Bot iniciado como {bot.user}')
-    print(f'Comandos registrados: {[command.name for command in bot.commands]}')
+    print(
+        f'Comandos registrados: {[command.name for command in bot.commands]}')
 
-@bot.event
-async def on_member_join(member: discord.Member):
-    """Evento que se ejecuta cuando un nuevo miembro se une al servidor."""
-    await handle_member_join(member)  # Llamar a la función de asignación de rol
-
-@bot.event
-async def on_member_update(before: discord.Member, after: discord.Member):
-    """Evento que se ejecuta cuando un miembro actualiza su información."""
-    await handle_member_update(before, after)  # Llamar a la función de actualización de apodo
 
 @bot.event
 async def on_message(message):
-    """Responde a los usuarios cuando dicen 'hola'."""
-    if message.author == bot.user:
+    """Reenvía el mensaje con emojis y el nombre del usuario sin errores."""
+    if message.author == bot.user or message.webhook_id:
         return
 
-    if message.content.lower() == "hola":
-        await message.channel.send(f"¡Hola, {message.author.mention}! 😊")
+    emojis = {
+        emoji.name:
+        f"<{'a' if emoji.animated else ''}:{emoji.name}:{emoji.id}>"
+        for emoji in message.guild.emojis
+    }
+
+    new_message = message.content
+    for emoji_name, emoji_str in emojis.items():
+        new_message = new_message.replace(f":{emoji_name}:", emoji_str)
+
+    if new_message == message.content:
+        await bot.process_commands(message)
+        return
+
+    channel = message.channel
+    await asyncio.sleep(0.3)
+
+    try:
+        await message.delete()
+    except discord.Forbidden:
+        print(f"No tengo permisos para borrar mensajes en {channel.name}")
+
+    webhooks = await channel.webhooks()
+    webhook = next((wh for wh in webhooks if wh.user == bot.user), None)
+
+    if webhook is None:
+        webhook = await channel.create_webhook(name="EmojiBot")
+
+    try:
+        await webhook.send(
+            content=new_message,
+            username=message.author.display_name,
+            avatar_url=message.author.avatar.url
+            if message.author.avatar else message.author.default_avatar.url)
+    except discord.HTTPException as e:
+        print(f"Error al enviar el mensaje: {e}")
 
     await bot.process_commands(message)
 
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def clear(ctx, amount: int):
-    """Elimina una cantidad específica de mensajes en el canal."""
-    if amount <= 0:
-        await ctx.send("❌ La cantidad debe ser mayor que 0.", delete_after=5)
-        return
 
-    try:
-        # Eliminar los mensajes (incluyendo el comando)
-        deleted = await ctx.channel.purge(limit=amount + 1)
-        # Enviar un mensaje de confirmación que se autodestruirá después de 3 segundos
-        await ctx.send(f'🗑️ Se eliminaron {len(deleted) - 1} mensajes.', delete_after=3)
-    except Exception as e:
-        await ctx.send(f"❌ Ocurrió un error al intentar eliminar los mensajes: {e}", delete_after=5)
+@bot.event
+async def on_member_join(member: discord.Member):
+    await handle_member_join(member)
 
-@bot.command()
-async def info(ctx, member: discord.Member):
-    """Muestra información sobre un usuario"""
-    embed = discord.Embed(title=f'Información de {member.name}', color=discord.Color.blue())
-    embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
-    embed.add_field(name='🔹 ID', value=member.id, inline=False)
-    embed.add_field(name='🔹 Nombre', value=member.name, inline=False)
-    embed.add_field(name='🔹 Apodo', value=member.nick if member.nick else 'Ninguno', inline=False)
-    embed.add_field(name='🔹 Cuenta creada', value=member.created_at.strftime("%d/%m/%Y"), inline=False)
-    embed.add_field(name='🔹 Se unió el', value=member.joined_at.strftime("%d/%m/%Y"), inline=False)
-    embed.add_field(
-        name='🔹 Roles',
-        value=', '.join([role.name for role in member.roles if role.name != "@everyone"]) or 'Sin roles',
-        inline=False
-    )
-    await ctx.send(embed=embed)
 
-@bot.command()
-@commands.has_permissions(ban_members=True)
-async def ban(ctx, member: discord.Member = None, *, reason="No especificada"):
-    """Banea a un usuario del servidor."""
-    if member is None:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="Debes mencionar a un usuario para banear.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
+@bot.event
+async def on_member_update(before: discord.Member, after: discord.Member):
+    await handle_member_update(before, after)
 
-    # Verificar si el bot tiene permisos para banear
-    if not ctx.guild.me.guild_permissions.ban_members:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No tengo permisos para banear usuarios.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
 
-    # Verificar si el usuario a banear tiene un rol más alto que el bot
-    if ctx.guild.me.top_role <= member.top_role:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No puedo banear a este usuario porque tiene un rol igual o superior al mío.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
+# Cargar comandos y el sistema de auto-roles
+async def load_extensions():
+    await bot.load_extension("commands")  # Tus otros comandos
+    await bot.load_extension("autorol")  # Auto-roles con reacciones
 
-    try:
-        # Banear al usuario
-        await member.ban(reason=reason)
-        embed = discord.Embed(
-            title="✅ Usuario baneado",
-            description=f"{member.mention} ha sido baneado.",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Razón", value=reason, inline=False)
-        await ctx.send(embed=embed)
-    except discord.Forbidden:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No tengo permisos para banear a este usuario.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-    except Exception as e:
-        embed = discord.Embed(
-            title="❌ Error",
-            description=f"Ocurrió un error al banear: {e}",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
 
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def anuncio(ctx, channel: discord.TextChannel = None, *, message=None):
-    """Envía un anuncio importante a un canal específico y menciona a todos los miembros."""
-    if channel is None or message is None:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="Uso correcto: `z.anuncio #canal Mensaje del anuncio`",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
+async def main():
+    async with bot:
+        await load_extensions()
+        await bot.start(TOKEN)
 
-    try:
-        embed = discord.Embed(
-            title="📢 Anuncio Importante",
-            description=message,
-            color=discord.Color.blue()
-        )
-        embed.set_footer(
-            text=f"Anuncio realizado por {ctx.author.name}",
-            icon_url=ctx.author.avatar.url
-        )
-        await channel.send("@here", embed=embed)
-        confirm_embed = discord.Embed(
-            title="✅ Anuncio enviado",
-            description=f"El anuncio se ha enviado correctamente a {channel.mention}.",
-            color=discord.Color.green()
-        )
-        await ctx.send(embed=confirm_embed, delete_after=10)
-    except discord.Forbidden:
-        await ctx.send(embed=discord.Embed(title="❌ Error", description="No tengo permisos para enviar mensajes en ese canal.", color=discord.Color.red()), delete_after=10)
-    except Exception as e:
-        await ctx.send(embed=discord.Embed(title="❌ Error", description=f"Ocurrió un error al enviar el anuncio: {e}", color=discord.Color.red()), delete_after=10)
 
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def unmute(ctx, member: discord.Member = None):
-    """Desmutea a un usuario en el servidor."""
-    if member is None:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="Debes mencionar a un usuario para desmutear.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    # Buscar el rol de mute en el servidor
-    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
-    if mute_role is None:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No existe un rol de mute en este servidor.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    # Verificar si el usuario tiene el rol de mute
-    if mute_role not in member.roles:
-        embed = discord.Embed(
-            title="❌ Error",
-            description=f"{member.mention} no está muteado.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    try:
-        # Quitar el rol de mute al usuario
-        await member.remove_roles(mute_role, reason="Desmuteo manual.")
-        embed = discord.Embed(
-            title="✅ Usuario desmuteado",
-            description=f"{member.mention} ha sido desmuteado.",
-            color=discord.Color.green()
-        )
-        await ctx.send(embed=embed)
-    except discord.Forbidden:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No tengo permisos para quitar roles a este usuario.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-    except Exception as e:
-        embed = discord.Embed(
-            title="❌ Error",
-            description=f"Ocurrió un error al desmutear: {e}",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-
-@bot.command()
-@commands.has_permissions(manage_roles=True)
-async def mute(ctx, member: discord.Member = None, tiempo: str = None, *, reason="No especificada"):
-    """Mutea a un usuario en el servidor por un tiempo específico."""
-    if member is None:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="Debes mencionar a un usuario para mutear.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    # Verificar si el bot tiene permisos para gestionar roles
-    if not ctx.guild.me.guild_permissions.manage_roles:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No tengo permisos para gestionar roles.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    # Verificar si el usuario a mutear tiene un rol más alto que el bot
-    if ctx.guild.me.top_role <= member.top_role:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No puedo mutear a este usuario porque tiene un rol igual o superior al mío.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    # Verificar si el usuario que ejecuta el comando tiene un rol más alto que el usuario a mutear
-    if ctx.author.top_role <= member.top_role:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No puedes mutear a este usuario porque tiene un rol igual o superior al tuyo.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-        return
-
-    # Buscar el rol de mute en el servidor
-    mute_role = discord.utils.get(ctx.guild.roles, name="Muted")
-    if mute_role is None:
-        # Si no existe el rol de mute, crearlo
-        try:
-            mute_role = await ctx.guild.create_role(name="Muted", reason="Crear rol de mute para el comando de muteo.")
-            # Deshabilitar permisos de enviar mensajes y hablar en todos los canales
-            for channel in ctx.guild.channels:
-                await channel.set_permissions(mute_role, send_messages=False, speak=False)
-        except discord.Forbidden:
-            embed = discord.Embed(
-                title="❌ Error",
-                description="No tengo permisos para crear el rol de mute.",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed, delete_after=10)
-            return
-        except Exception as e:
-            embed = discord.Embed(
-                title="❌ Error",
-                description=f"Ocurrió un error al crear el rol de mute: {e}",
-                color=discord.Color.red()
-            )
-            await ctx.send(embed=embed, delete_after=10)
-            return
-
-    try:
-        # Añadir el rol de mute al usuario
-        await member.add_roles(mute_role, reason=reason)
-
-        # Crear el mensaje de confirmación
-        embed = discord.Embed(
-            title="✅ Usuario muteado",
-            description=f"{member.mention} ha sido muteado.",
-            color=discord.Color.green()
-        )
-        embed.add_field(name="Razón", value=reason, inline=False)
-
-        # Si se especificó un tiempo, calcular la duración del mute
-        if tiempo:
-            try:
-                # Convertir el tiempo a segundos
-                tiempo_segundos = 0
-                if "d" in tiempo:
-                    tiempo_segundos += int(tiempo.split("d")[0]) * 86400
-                    tiempo = tiempo.split("d")[1]
-                if "h" in tiempo:
-                    tiempo_segundos += int(tiempo.split("h")[0]) * 3600
-                    tiempo = tiempo.split("h")[1]
-                if "m" in tiempo:
-                    tiempo_segundos += int(tiempo.split("m")[0]) * 60
-                    tiempo = tiempo.split("m")[1]
-                if "s" in tiempo:
-                    tiempo_segundos += int(tiempo.split("s")[0])
-
-                # Mostrar el tiempo en el mensaje
-                embed.add_field(name="Duración", value=tiempo, inline=False)
-
-                # Programar el desmuteo después del tiempo especificado
-                await asyncio.sleep(tiempo_segundos)
-                await member.remove_roles(mute_role, reason="Tiempo de muteo terminado.")
-                await ctx.send(f"✅ {member.mention} ha sido desmuteado automáticamente.", delete_after=10)
-            except ValueError:
-                await ctx.send("❌ Formato de tiempo inválido. Usa `1d2h3m4s` como ejemplo.", delete_after=10)
-                return
-
-        # Enviar el mensaje de confirmación
-        await ctx.send(embed=embed)
-    except discord.Forbidden:
-        embed = discord.Embed(
-            title="❌ Error",
-            description="No tengo permisos para añadir roles a este usuario.",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-    except Exception as e:
-        embed = discord.Embed(
-            title="❌ Error",
-            description=f"Ocurrió un error al mutear: {e}",
-            color=discord.Color.red()
-        )
-        await ctx.send(embed=embed, delete_after=10)
-
-bot.run(my_secret)
+# Ejecutar el bot
+asyncio.run(main())
