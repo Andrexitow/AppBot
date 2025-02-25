@@ -28,45 +28,49 @@ async def on_ready():
         # Evitar que el bot responda a sus propios mensajes o mensajes de webhooks
         if message.author == bot.user or message.webhook_id:
             return
-
+    
         # Si el mensaje es "hola", el bot saluda al usuario
         if message.content.lower().strip() == "hola":
             await message.channel.send(f"¡Hola, {message.author.mention}! ¿Cómo estás?")
             await bot.process_commands(message)
             return
-
+    
         # Verificar si el usuario tiene Nitro
+        # Si lo tiene, no es necesario hacer el reemplazo
         if message.author.premium_since is not None:
             await bot.process_commands(message)
             return
-
-        emojis = {
-            emoji.name: f"<{'a' if emoji.animated else ''}:{emoji.name}:{emoji.id}>"
-            for emoji in message.guild.emojis
+    
+        # Construir un diccionario solo con emojis animados del servidor
+        animated_emojis = {
+            emoji.name: f"<a:{emoji.name}:{emoji.id}>"
+            for emoji in message.guild.emojis if emoji.animated
         }
-
+    
         new_message = message.content
-        for emoji_name, emoji_str in emojis.items():
+        # Reemplazar solo los emojis animados encontrados en el mensaje
+        for emoji_name, emoji_str in animated_emojis.items():
             new_message = new_message.replace(f":{emoji_name}:", emoji_str)
-
+    
+        # Si no se realizó ningún cambio, continuar normalmente
         if new_message == message.content:
             await bot.process_commands(message)
             return
-
+    
         channel = message.channel
         await asyncio.sleep(0.3)
-
+    
         try:
             await message.delete()
         except discord.Forbidden:
             print(f"No tengo permisos para borrar mensajes en {channel.name}")
-
+    
         webhooks = await channel.webhooks()
         webhook = next((wh for wh in webhooks if wh.user == bot.user), None)
-
+    
         if webhook is None:
             webhook = await channel.create_webhook(name="EmojiBot")
-
+    
         try:
             await webhook.send(
                 content=new_message,
@@ -75,8 +79,9 @@ async def on_ready():
             )
         except discord.HTTPException as e:
             print(f"Error al enviar el mensaje: {e}")
-
+    
         await bot.process_commands(message)
+
 
 @bot.event
 async def on_member_join(member: discord.Member):
