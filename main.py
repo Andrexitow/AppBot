@@ -21,7 +21,7 @@ bot = commands.Bot(command_prefix="..", intents=intents)
 # Mantener el bot activo con un mensaje cada 5 segundos
 async def keep_alive_task():
     await bot.wait_until_ready()  # Espera a que el bot esté listo
-    channel_id = 123456789012345678  # Reemplázalo con el ID de tu canal de Discord
+    channel_id = 1343622087448723556  # Reemplázalo con el ID de tu canal de Discord
 
     while not bot.is_closed():
         channel = bot.get_channel(channel_id)
