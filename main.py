@@ -27,7 +27,7 @@ async def keep_alive_task():
         channel = bot.get_channel(channel_id)
         if channel:
             await channel.send("👋 Estoy activo y funcionando correctamente.")
-        await asyncio.sleep(5)  # Espera 5 segundos antes de enviar el siguiente mensaje 1800
+        await asyncio.sleep(1800)  # Espera 5 segundos antes de enviar el siguiente mensaje 1800
 
 @bot.event
 async def on_ready():
