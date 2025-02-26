@@ -23,6 +23,16 @@ async def on_ready():
     print(f'✅ Bot iniciado como {bot.user}')
     print(f'Comandos registrados: {[command.name for command in bot.commands]}')
 
+async def keep_alive_task():
+    await bot.wait_until_ready()  # Espera a que el bot esté listo
+    channel_id = 1343622087448723556  # Reemplaza con el ID del canal donde quieres enviar mensajes
+
+    while not bot.is_closed():
+        channel = bot.get_channel(channel_id)
+        if channel:
+            await channel.send("👋 Estoy activo y funcionando correctamente.")
+        await asyncio.sleep(5)  # Espera 30 minutos antes de volver a enviar el mensaje 1800
+
     @bot.event
     async def on_message(message):
         # Evitar que el bot responda a sus propios mensajes o mensajes de webhooks
