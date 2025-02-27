@@ -142,6 +142,22 @@ class BotCommands(commands.Cog):
                 color=discord.Color.red()
             ), delete_after=10)
 
+    @commands.command()
+    @commands.has_role(123456789012345678)  # Reemplaza con la ID del rol "Tiktoker"
+    async def spam(self, ctx, description: str, link: str):
+        """Permite a los Tiktokers hacer publicidad de sus videos o directos."""
+        # Crear un embed con la descripción y el enlace
+        embed = discord.Embed(
+            title="🎥 Nuevo Video/Directo",
+            description=description,
+            color=discord.Color.purple()
+        )
+        embed.add_field(name="Enlace", value=link, inline=False)
+        embed.set_footer(text=f"Publicado por {ctx.author.name}", icon_url=ctx.author.avatar.url)
+
+        # Enviar el embed al canal
+        await ctx.send(embed=embed)
+
 # Agregar la clase como un `Cog` al bot
 async def setup(bot):
     await bot.add_cog(BotCommands(bot))
