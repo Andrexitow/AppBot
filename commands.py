@@ -143,7 +143,7 @@ class BotCommands(commands.Cog):
             ), delete_after=10)
 
     @commands.command()
-    @commands.has_role(123456789012345678)  # Reemplaza con la ID del rol "Tiktoker"
+    @commands.has_role(883194087107350528)  # Reemplaza con la ID del rol "Tiktoker"
     async def spam(self, ctx, description: str = None, link: str = None):
         """Permite a los Tiktokers hacer publicidad de sus videos o directos."""
         # Si no se proporcionan argumentos, mostrar instrucciones
