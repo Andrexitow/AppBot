@@ -143,20 +143,39 @@ class BotCommands(commands.Cog):
             ), delete_after=10)
 
     @commands.command()
-    @commands.has_role(883194087107350528)  # Reemplaza con la ID del rol "Tiktoker"
-    async def spam(self, ctx, description: str, link: str):
+    @commands.has_role(123456789012345678)  # Reemplaza con la ID del rol "Tiktoker"
+    async def spam(self, ctx, description: str = None, link: str = None):
         """Permite a los Tiktokers hacer publicidad de sus videos o directos."""
-        # Crear un embed con la descripción y el enlace
+        # Si no se proporcionan argumentos, mostrar instrucciones
+        if description is None or link is None:
+            embed = discord.Embed(
+                title="❌ Uso incorrecto",
+                description="**Uso correcto:** `..spam [descripción] [enlace]`\n\n"
+                            "**Ejemplo:** `..spam \"¡Mira mi nuevo video!\" https://tiktok.com/@usuario/video/123456789`",
+                color=discord.Color.red()
+            )
+            await ctx.send(embed=embed, delete_after=15)
+            return
+
+        # Eliminar el mensaje del autor
+        try:
+            await ctx.message.delete()
+        except discord.Forbidden:
+            await ctx.send("❌ No tengo permisos para eliminar mensajes.", delete_after=5)
+            return
+
+        # Crear un embed con la descripción, el enlace y un GIF
         embed = discord.Embed(
             title="🎥 Nuevo Video/Directo",
             description=description,
             color=discord.Color.purple()
         )
         embed.add_field(name="Enlace", value=link, inline=False)
+        embed.set_image(url="https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif")  # Reemplaza con tu GIF
         embed.set_footer(text=f"Publicado por {ctx.author.name}", icon_url=ctx.author.avatar.url)
 
-        # Enviar el embed al canal
-        await ctx.send(embed=embed)
+        # Enviar el embed con @here
+        await ctx.send("@here", embed=embed)
 
 # Agregar la clase como un `Cog` al bot
 async def setup(bot):
