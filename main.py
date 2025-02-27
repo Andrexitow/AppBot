@@ -4,7 +4,7 @@ import asyncio
 from discord.ext import commands
 from welcome import send_welcome_message  # Importar la función de welcome.py
 from back import send_farewell_message  # Función de despedida
-from updaterol import handle_member_update, handle_member_join  # Importar funciones
+from updaterol import handle_member_update, handle_member_join  # Importar funcioness
 from aiohttp import web  # Importar AIOHTTP
 
 # Obtener el token desde las variables de entorno
