@@ -171,7 +171,7 @@ class BotCommands(commands.Cog):
             color=discord.Color.purple()
         )
         embed.add_field(name="Enlace", value=link, inline=False)
-        embed.set_image(url="https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif")  # Reemplaza con tu GIF
+        embed.set_image(url="https://media.discordapp.net/attachments/1343622087448723556/1344722794994204793/tiktok-logo-logo.gif?ex=67c1f232&is=67c0a0b2&hm=da6777f1b8770146fa39eaa719dbd8a46341c786faa419d98d73e91529ce8c4f&=")  # Reemplaza con tu GIF
         embed.set_footer(text=f"Publicado por {ctx.author.name}", icon_url=ctx.author.avatar.url)
 
         # Enviar el embed con @here
