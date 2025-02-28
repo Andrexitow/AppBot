@@ -13,7 +13,7 @@ async def send_welcome_message(member):
         avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
 
         # URL del banner gif (reemplaza esta URL con la de tu gif/banner)
-        banner_url = "https://media.discordapp.net/attachments/1343622087448723556/1343809701996920852/uhMkNyZ.gif?ex=67be9fcf&is=67bd4e4f&hm=88f56addfb39afd81a265f5f48f4a6a30ac3200890e4ece124e357b1d5a81ca5&=&width=625&height=353"
+        banner_url = "https://media.discordapp.net/attachments/1344857912752865370/1344859094716256276/Gif-Animated-Wallpaper-Background-Full-HD-Free-Download-for-PC-Macbook-261121-Wallpaperxyz.com-13.gif?ex=67c27122&is=67c11fa2&hm=5d35eb31f9c5a540a5cd688707bb0f2c25d3b2d1ac20394367744fcb89cf4759&=&width=1423&height=800"
 
         # Crear el embed con un diseño mejorado
         embed = discord.Embed(
