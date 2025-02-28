@@ -41,7 +41,7 @@ async def keep_alive_task():
     while not bot.is_closed():
         channel = bot.get_channel(channel_id)
         if channel:
-            await channel.send("👋 Estoy activo y funcionando correctamente.")
+            #await channel.send("👋 Estoy activo y funcionando correctamente.")
         await asyncio.sleep(1800)  # Espera 30 minutos
 
 @bot.event
