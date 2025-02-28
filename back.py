@@ -13,7 +13,7 @@ async def send_farewell_message(member):
         avatar_url = member.avatar.url if member.avatar else member.default_avatar.url
 
         # URL del banner gif de despedida (reemplaza esta URL con la de tu gif/banner)
-        banner_url = "https://media.discordapp.net/attachments/1343622087448723556/1343809701996920852/uhMkNyZ.gif?ex=67be9fcf&is=67bd4e4f&hm=88f56addfb39afd81a265f5f48f4a6a30ac3200890e4ece124e357b1d5a81ca5&=&width=625&height=353"
+        banner_url = "https://media.discordapp.net/attachments/1344857912752865370/1344859095076700160/tumblr_static_tumblr_static_eudryx3tcu0w88cwcw4cowcgc_640.gif?ex=67c27122&is=67c11fa2&hm=67639df88492f4ddd3c3e3cd00202688ce20c001793b69ab15282dda6c4e0cab&=&width=621&height=350"
 
         # Crear el embed con un diseño similar al de bienvenida
         embed = discord.Embed(
