@@ -33,22 +33,10 @@ async def run_web_server():
     await site.start()
     print(f"Servidor web corriendo en el puerto {port}")
 
-# Tarea de keep-alive en Discord (mensaje cada 30 minutos)
-async def keep_alive_task():
-    await bot.wait_until_ready()  # Espera a que el bot esté listo
-    channel_id = 1343622087448723556  # Reemplázalo con el ID de tu canal de Discord
-
-    while not bot.is_closed():
-        channel = bot.get_channel(channel_id)
-        if channel:
-            #await channel.send("👋 Estoy activo y funcionando correctamente.")
-        await asyncio.sleep(1800)  # Espera 30 minutos
-
 @bot.event
 async def on_ready():
     print(f'✅ Bot iniciado como {bot.user}')
     print(f'Comandos registrados: {[command.name for command in bot.commands]}')
-    bot.loop.create_task(keep_alive_task())  # Inicia la tarea en segundo plano
 
     @bot.event
     async def on_message(message):
