@@ -23,16 +23,6 @@ bot = commands.Bot(command_prefix="..", intents=intents)
 async def handle(request):
     return web.Response(text="Bot activo.")
 
-async def run_web_server():
-    port = int(os.environ.get("PORT", 8000))  # Railway asigna el puerto mediante la variable PORT
-    app = web.Application()
-    app.router.add_get('/', handle)
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', port)
-    await site.start()
-    print(f"Servidor web corriendo en el puerto {port}")
-
 @bot.event
 async def on_ready():
     print(f'✅ Bot iniciado como {bot.user}')
@@ -139,8 +129,6 @@ async def load_extensions():
 
 async def main():
     async with bot:
-        # Iniciar el servidor web para mantener activo el contenedor en Railway
-        await run_web_server()
         await load_extensions()
         await bot.start(TOKEN)
 
